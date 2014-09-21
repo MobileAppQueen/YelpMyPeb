@@ -12,20 +12,31 @@ $TOKEN_SECRET = "1ZY2GUtnTb9bmpKDymtzHS-9Cmg";
 $API_HOST = 'api.yelp.com';
 $DEFAULT_TERM = 'dinner';
 $DEFAULT_LOCATION = 'San Francisco, CA';
-$SEARCH_LIMIT = 3;
+$SEARCH_LIMIT = 1;
 $SEARCH_PATH = '/v2/search/';
 $BUSINESS_PATH = '/v2/business/';
 
 $inputData="";
 $whatTheyWantToFind="";
+$data;
+$business_id;
+$business_name;
+$business_phone ;
+$business_rating;
+$business_loc;
+$business_lat;
+$business_long;
+$arrSteps;
 
+
+//Strat CallingFuntions
 getUserInfo();
 
 function getUserInfo(){
 
 //Get User info
 $body=$_REQUEST['Body'];
-$body="Find:mcdonalds store,location:mississauga on";
+$body="Find:poutine,location:university of waterloo";
 
 //Action:x,Loc:y
 list($locatex, $locatey) = explode(',', $body);
@@ -34,20 +45,21 @@ list($c, $d) = explode(':', $locatey);
 $action=$a;
 $query=$b;
 $location=$d;
-
+global $inputData;
 $inputData="Action is ". $action. " Query is ". $query. " Location is ". $location;
 
 //Change it to if action==find, then call my funtion yellowapi later
 if ($action=="find"||$action=="Find"){
-	funcYelpApi($query, $location);
+    funcYelpApi($query, $location);
 }
 }
 
 function funcYelpApi($need, $loc){
 ///The users inputs
-	$whatTheyWantToFind = str_replace(' ', '+', $need);
-	$whereTheyWantToFind = str_replace(' ', '+', $loc);
-	query_api($whatTheyWantToFind, $whereTheyWantToFind);
+    global $whatTheyWantToFind;
+    $whatTheyWantToFind = str_replace(' ', '+', $need);
+    $whereTheyWantToFind = str_replace(' ', '+', $loc);
+    query_api($whatTheyWantToFind, $whereTheyWantToFind);
 
 }
 
@@ -133,25 +145,53 @@ function get_business($business_id) {
  */
 function query_api($term, $location) {     
     $response = json_decode(search($term, $location));
+    global $business_id,$business_name, $business_phone, $business_rating,
+    $business_loc, $business_lat, $business_long;
     $business_id = $response->businesses[0]->id;
+    $business_name = $response->businesses[0]->name;
+    $business_phone = $response->businesses[0]->display_phone;
+    $business_rating = $response->businesses[0]->rating;
+    $business_loc = $response->businesses[0]->location->display_address[0]." ".$response->businesses[0]->location->display_address[1]." ".$response->businesses[0]->location->display_address[2
+    ];
+    $business_lat = $response->businesses[0]->location->coordinate->latitude;
+    $business_long = $response->businesses[0]->location->coordinate->longitude;
     
-    print sprintf(
-        "%d businesses found, querying business info for the top result \"%s\"\n\n",         
-        count($response->businesses),
-        $business_id
-    );
-    
-    $response = get_business($business_id);
-    
-    print sprintf("Result for business \"%s\" found:\n", $business_id);
-    print "$response\n";
+   //$response = get_business($business_id);
+    getGoogleDiretions("to", $business_lat,$business_long);
 }
 
 
+function getGoogleDiretions($fromLocation, $toLatCord, $toLongCord){
+ //$apikeyGoog="AIzaSyC7039WhYAgofVmtS_IRVFxWBd3sQcGCbk";
+$fromLocation="Toronto";
+//$mapURL="https://maps.googleapis.com/maps/api/directions/json?origin=Toronto&destination=43.652689,-79.452787&sensor=false&key=AIzaSyC7039WhYAgofVmtS_IRVFxWBd3sQcGCbk&avoid=highways&mode=bicycling";
+
+//$mapURL="https://maps.googleapis.com/maps/api/directions/json?origin=". $fromPlace. "&destination=". $toLat. ",". $toLong. "&sensor=false&key=".AIzaSyC7039WhYAgofVmtS_IRVFxWBd3sQcGCbk&avoid=highways&mode=bicycling";
+
+$mapURL="https://maps.googleapis.com/maps/api/directions/json?origin=".$fromLocation."&destination=". $toLatCord. ",". $toLongCord. "&sensor=false&key=AIzaSyC7039WhYAgofVmtS_IRVFxWBd3sQcGCbk";
+
+$jsonMap = file_get_contents($mapURL);
+
+///Parse json
+$json_a_map=json_decode($jsonMap,true);
+$arrSteps=  $json_a_map['routes'][0]['legs'][0]['steps'];
+
+}
 ?>
 
+
 <Response>
-	<Message>
-		Here's some data about the input: <?php echo $inputData; echo 'User is looking for '. $whatTheyWantToFind; ?>
-	</Message>
+    <Message>
+        You asked for: <?php echo $whatTheyWantToFind; ?>
+        We found: <?php echo  $business_name. " with a rating of ".$business_rating." . At ".$business_loc  ?> The directions
+    <?php
+    global $arrSteps;
+    $arrlength=count($arrSteps);
+    foreach($arrSteps as $userStep){
+       // $textOut=strip_tags($userStep["html_instructions"]);
+       $textOut=$userStep["html_instructions"];
+        echo 'Step: '.$textOut.'';
+    }
+    ?> 
+    </Message>
 </Response>
